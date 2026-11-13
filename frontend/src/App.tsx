@@ -39,7 +39,8 @@ export default function App() {
     <main className="trace-x2-main">
       <ExpoTelemetry />
       <footer className="trace-x2-footer">
-        Read-only Expo display: live values come from the STM32 sensor acquisition service.\n        Invalid or stale data is never represented as a successful measurement.
+        Read-only Expo display: live values come from the STM32 sensor acquisition service.
+        Invalid or stale data is never represented as a successful measurement.
       </footer>
     </main>
   </div>
