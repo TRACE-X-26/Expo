@@ -89,6 +89,16 @@ class HardwareRuntime:
     @staticmethod
     def validate_sensors(profile, raw, tick, *, phase="running", powered_ms=None):
         channels = validate_measurements(raw)
+        # The motor INA219 is downstream of the relay. It cannot report a
+        # voltage/current/power sample while the relay is deliberately open.
+        # Off-state checks must use only independently powered measurements.
+        if phase == 'deenergized':
+            rpm = channels['rpm']
+            if not rpm['valid'] or ((tick - rpm['timestamp_ms']) & 0xffffffff) > 1500:
+                raise RunRejected('Motor stationary-state measurement unavailable')
+            if rpm['value'] != 0:
+                raise RunRejected('Motor must be stationary before the power check')
+            return channels
         names = ['voltage', 'current', 'power', 'rpm']
         if profile.get('temperature_enabled', True):
             names.append('temperature')
