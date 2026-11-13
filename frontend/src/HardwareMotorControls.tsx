@@ -144,7 +144,9 @@ export default function HardwareMotorControls() {
   const value = (key: 'voltage' | 'current' | 'rpm' | 'input_power') => {
     const activeValue = numeric(sample?.[key])
     if (activeValue !== null) return activeValue
-    if (key === 'rpm') return sensorRpm
+    // A passive encoder observation is not proof that a requested motor test started.
+    // During idle, avoid displaying an unexplained RPM as an active motor speed.
+    if (key === 'rpm') return active ? sensorRpm : null
     const electricalValue = electrical(key === 'input_power' ? 'power' : key)
     if (electricalValue !== null) return electricalValue
     const sampleKey = key === 'input_power' ? 'power' : key
@@ -232,13 +234,13 @@ export default function HardwareMotorControls() {
     <section className="metric-grid motor-metrics" aria-label="Live motor measurements">
       <div className="metric"><span>Voltage</span><strong>{format(value('voltage'))}<small> V</small></strong></div>
       <div className="metric"><span>Current</span><strong>{format(value('current'))}<small> A</small></strong></div>
-      <div className="metric"><span>Motor Speed</span><strong>{format(value('rpm'), 0)}<small> RPM</small></strong></div>
+      <div className="metric"><span>Motor Speed {active ? '(provisional)' : '(test idle)'}</span><strong>{format(value('rpm'), 0)}<small> RPM</small></strong></div>
       <div className="metric"><span>Power</span><strong>{format(value('input_power'))}<small> W</small></strong></div>
     </section>
     <p className="muted" role="status">
       Sensor feed: {live == null ? 'Unavailable' : live.connected !== true ? 'Disconnected' : live.stale ? 'Stale' : 'Connected'}
       {' · '}Motor INA219: {motorSensor == null ? 'Not reported' : motorSensor.stale ? 'Stale' : motorSensor.valid === false ? 'Invalid' : 'Reporting'}
-      {' · '}Values marked — are unavailable, not zero. Motor relay may be OFF while sensors still report.
+      {' · '}Values marked — are unavailable, not zero. Motor relay may be OFF while sensors still report. Voltage/current readings are not proof that the motor relay is closed; idle RPM is intentionally hidden.
     </p>
     <div className="driver-state">
       <div><span>PWM</span><strong>{pwm == null ? '—' : `${pwm}%`}</strong></div>
