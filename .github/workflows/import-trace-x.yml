@@ -1,0 +1,33 @@
+name: Import TRACE-X Dashboard and STM32 firmware
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/import-trace-x.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Expo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout verified dashboard and firmware
+        uses: actions/checkout@v4
+        with:
+          repository: TRACE-X-26/TRACE-X-Dashboard-2.0
+          ref: dashboard-2.0-simplified-testing
+          path: source
+          persist-credentials: false
+      - name: Copy all source files to Expo
+        shell: bash
+        run: |
+          rsync -a --delete --exclude=.git --exclude=source/ source/ ./
+          rm -rf source
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Import Dashboard 2.0, Raspberry Pi backend and STM32 firmware" || exit 0
+          git push origin HEAD:main
