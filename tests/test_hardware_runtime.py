@@ -91,7 +91,13 @@ class BenchFixture(STM32Simulator):
                 result['electrical_started_ms']=self.power_tick
                 result['electrical_completed_ms']=self.power_tick
             if not self.power_stage:
-                for key in ('voltage','current','power'):result['measurements'][key]['value']=0.
+                for key in ('voltage','current','power'):
+                    result['measurements'][key]['value']=0.
+                    if self.fault in ('downstream_unpowered', 'downstream_stays_unpowered'):
+                        result['measurements'][key].update(value=None, valid=False)
+            if self.fault == 'downstream_stays_unpowered':
+                for key in ('voltage','current','power'):
+                    result['measurements'][key].update(value=None, valid=False)
             result['measurements']['temperature'].update(valid=False, value=None)
             result['temperature_calibrated'] = False
             if self.fault == 'invalid_sensor' and self.state == 'RUNNING':
@@ -198,6 +204,31 @@ class HardwareRuntimeTests(unittest.TestCase):
         self.assertIsNone(run['health_score'])  # No baseline is invented.
         engine.hardware_runtime.checked_at -= 16
         self.assertFalse(engine.hardware_runtime.snapshot()['ready'])
+
+    def test_unpowered_downstream_sensor_does_not_block_relay_preparation(self):
+        engine = self.engine('downstream_unpowered')
+        report = engine.preflight()
+        self.assertTrue(report['ready'], report)
+        # Read-only preflight must never energize the relay.
+        self.assertNotIn('PREPARE_TEST_POWER', self.commands())
+        engine.start(self.request())
+        run = self.finish(engine)
+        self.assertEqual(run['state'], 'COMPLETED', run.get('reason'))
+        commands = [r.payload.get('command') for r in self.fixtures[-1].frames]
+        self.assertLess(commands.index('ARM_TEST'), commands.index('PREPARE_TEST_POWER'))
+        self.assertLess(commands.index('PREPARE_TEST_POWER'), commands.index('START_TEST'))
+        self.assertTrue(run['stop_confirmed'])
+
+    def test_sensor_never_powers_up_keeps_pwm_off(self):
+        engine = self.engine('downstream_stays_unpowered')
+        engine.start(self.request())
+        run = self.finish(engine)
+        self.assertEqual(run['state'], 'FAILED', run.get('reason'))
+        self.assertIn('Power-check', run['reason'])
+        commands = [r.payload.get('command') for r in self.fixtures[-1].frames]
+        self.assertIn('PREPARE_TEST_POWER', commands)
+        self.assertNotIn('START_TEST', commands)
+        self.assertTrue(run['stop_confirmed'])
 
     def test_rejected_start_stale_current_voltage_heartbeat_and_stop_failures(self):
         cases = {'relay_failure':'RELAY_ACTUATION_FAILED','invalid_sensor':'invalid or stale','rejected_start': 'INTERLOCK_OR_SENSOR_FAULT', 'stale': 'invalid or stale',

@@ -308,8 +308,16 @@ class AutomatedTestEngine:
                 'rpm_calibrated':raw.get('encoder_calibrated') is True,'temperature_enabled':temperature_enabled,
                 'ina219':branches}
         if self.publish:self.publish(raw,run['source'])
-        if 'INVALID_SENSOR_DATA' in quality or 'CALIBRATION_UNVERIFIED' in quality or any(q.startswith('STALE') for q in quality):
-            raise RunRejected('Sensor acquisition invalid or stale; motor condition unknown')
+        # Electrical readings are unavailable while the downstream relay is
+        # open, and may take time to initialize after closing. Permit only
+        # those two explicit zero-PWM phases; running still fails closed.
+        if 'CALIBRATION_UNVERIFIED' in quality:
+            raise RunRejected('Sensor calibration unverified')
+        if 'INVALID_SENSOR_DATA' in quality or any(q.startswith('STALE') for q in quality):
+            if electrical_phase == 'checking':
+                raise RunRejected('Power-check acquisition pending')
+            if electrical_phase != 'deenergized':
+                raise RunRejected('Sensor acquisition invalid or stale; motor condition unknown')
         faults=[]
         if run['mode']=='simulation':
             limits=run['commissioning']['limits']
@@ -345,9 +353,17 @@ class AutomatedTestEngine:
                 warmup_deadline=time.monotonic()+2.5
                 while True:
                     connection.heartbeat()
-                    try:self._measure(connection,run,procedure,step,None);break
+                    try:
+                        self._measure(connection,run,procedure,step,None,
+                            electrical_phase='deenergized' if run['mode']=='hardware' else None)
+                        break
                     except RunRejected as exc:
-                        if run['mode']!='hardware' or not str(exc).startswith('Sensor acquisition invalid or stale') or time.monotonic()>=warmup_deadline:raise
+                        retryable=('Motor stationary-state measurement unavailable',
+                                   'Sensor acquisition invalid or stale')
+                        if (run['mode']!='hardware' or
+                            not any(str(exc).startswith(reason) for reason in retryable) or
+                            time.monotonic()>=warmup_deadline):
+                            raise
                         self._check_cancel();self._cancel.wait(.1)
                 self._transition(run,'ARMED');started=None;device_run_id=None
                 if procedure.pwm:

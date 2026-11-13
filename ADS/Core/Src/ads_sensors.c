@@ -179,11 +179,11 @@ int ADS_Motor_IdleReady(void)
 {
   ADS_Sample s[5];ADS_Sensors_Acquire(s,0);
   if(!ADS_INA219_CALIBRATED || !ADS_PROTECTION_LIMITS_VERIFIED || !s[4].valid || s[4].milli_value!=0) return 0;
-  /* Before the relay closes, zero voltage is expected, not a range pass. */
-  for(unsigned i=0;i<3;i++) if(!s[i].valid || s[i].timestamp_ms!=s[0].timestamp_ms) return 0;
-  int64_t current=s[1].milli_value;if(current<0)current=-current;
-  if(ADS_Motor_PowerState()==0 && s[0].milli_value>=(int32_t)ADS_MOTOR_MIN_VOLTAGE_MV) return 0;
-  return s[0].milli_value>=0 && s[0].milli_value<=(int32_t)ADS_MOTOR_MAX_VOLTAGE_MV && current<(int64_t)ADS_MOTOR_MAX_CURRENT_MA;
+  /* The motor INA219 is supplied through the motor relay. At idle it
+   * legitimately has no valid electrical measurements. Do not require it
+   * before requesting power; protection becomes mandatory in POWER_CHECK
+   * and remains mandatory while PWM is active. No sensor fault is cleared. */
+  return ADS_Motor_PowerState()==0;
 }
 int ADS_Motor_PowerSampleState(uint32_t powered_ms)
 {
