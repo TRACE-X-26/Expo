@@ -1,3 +1,17 @@
+## Expo main — PR #2 downstream INA219 startup update (November 13, 2026)
+
+The fixes from [PR #2](https://github.com/TRACE-X-26/Expo/pull/2) are merged into **main** (merge commit `b669ba1`). This is the branch to download to the Raspberry Pi, not the old PR branch.
+
+- Raspberry Pi: `diagnostic_platform/automated_engine.py` and `diagnostic_platform/hardware_runtime.py` recognize that downstream INA219 electrical measurements are unavailable while the motor relay is OFF.
+- STM32: `ADS/Core/Src/ads_sensors.c` and `ADS/Core/Src/ads_protection.c` permit a zero-PWM, bounded relay-on acquisition period; valid readings and existing voltage/current limits are still required before motor PWM.
+- Regression cases: `tests/test_hardware_runtime.py` covers a sensor that powers up after relay preparation and a sensor that never produces valid readings.
+
+**Validation status:** The changes were committed and merged, but Python test results, STM32 build verification, and physical hardware acceptance are not established by this update. The firmware still advertises `0.7.0-downstream-protected`; that version string alone cannot identify a PR #2 build. With motor energy disconnected, verify the board, relay reset state, correct firmware binary, and tests before any energized trial. Existing uncalibrated encoder RPM must be investigated, not bypassed.
+
+Download this tree with `git clone https://github.com/TRACE-X-26/Expo.git` or use GitHub's **Code → Download ZIP** while on `main`.
+
+---
+
 Current wiring-compatible implementation: [downstream sensor integration](docs/DOWNSTREAM_SENSOR_INTEGRATION.md), firmware 0.7.0. Start includes a bounded relay-on check at zero PWM before motor rotation is authorized.
 
 Current protected hardware integration: [deployment, flashing and outstanding bench checks](docs/PROTECTED_HARDWARE_INTEGRATION.md). Default outputs disabled; 10–14 V and 1.5 A protection restored.
