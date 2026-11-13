@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react'
 import { api } from './api'
-import TestStation from './TestStation'
+import ExpoTelemetry from './ExpoTelemetry'
 
 /**
  * TRACE-X 2.0 operator interface.
- * Only the commissioned physical test station is shown.
- * Legacy simulator/diagnostic tools remain in the codebase but are not
- * exposed as competing controls on the Raspberry Pi touchscreen.
+ * Expo presentation: continuous read-only physical telemetry.
+ * Motor and circuit actuation controls are not rendered.
  */
 export default function App() {
   const [online, setOnline] = useState(false)
@@ -38,10 +37,9 @@ export default function App() {
       </div>
     </div>
     <main className="trace-x2-main">
-      <TestStation />
+      <ExpoTelemetry />
       <footer className="trace-x2-footer">
-        Physical outputs remain controlled by the STM32 and the Raspberry Pi backend.
-        Motor start requests use the protected backend and STM32. CHECK HARDWARE reports the exact firmware or wiring issue when unavailable.
+        Read-only Expo display: live values come from the STM32 sensor acquisition service.\n        Invalid or stale data is never represented as a successful measurement.
       </footer>
     </main>
   </div>
